@@ -17,6 +17,14 @@ su -c "cp -f $SRC/zapret.conf $SRC/zapret.sh $SRC/zapret-watch.sh $SRC/service.s
 su -c "chmod 755 $DEST/zapret.sh $DEST/zapret-watch.sh $DEST/service.sh"
 su -c "chmod 644 $DEST/bin/* $DEST/lists/* $DEST/strategies/* $DEST/zapret.conf $DEST/VERSION"
 
+# user-списки: не в репо, обновление их не трогает. Сканируем стратегии на
+# ссылки вида lists/*-user.txt и автосоздаём их, если ещё нет (контент при
+# переустановке не затирается). Правка — через меню service.sh (п. 9).
+user_lists="$(grep -hEo 'lists/[^ \"=]+-user\.txt' "$SRC/strategies"/*.conf 2>/dev/null | sort -u)"
+for ul in $user_lists; do
+  su -c "test -f $DEST/$ul || touch $DEST/$ul"
+done
+
 if [ ! -x "$DEST/nfqws" ]; then
   echo "==> Скачиваю nfqws (linux-arm64)..."
   TMP="$(mktemp -d)"

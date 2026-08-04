@@ -17,6 +17,15 @@ strategies() {
   ls "$BASE/strategies"/*.conf 2>/dev/null | sed 's#.*/##; s/\.conf$//' | sort
 }
 
+# Создаёт user-списки (lists/*-user.txt), на которые ссылаются стратегии,
+# если их ещё нет. Обновление базовых списков их не трогает.
+ensure_user_lists() {
+  local ul
+  for ul in $(grep -hEo 'lists/[^ \"=]+-user\.txt' "$BASE/strategies"/*.conf 2>/dev/null | sort -u); do
+    su -c "test -f '$BASE/$ul' || touch '$BASE/$ul'" 2>/dev/null
+  done
+}
+
 pick_strategy() {
   local list=($(strategies)) i=1
   [ "${#list[@]}" -eq 0 ] && { echo "Стратегии не найдены в $BASE/strategies/"; return 1; }
@@ -96,6 +105,7 @@ update_apply() {
   src="$(fetch_repo "$d")" || { rm -rf "$d"; echo "Ошибка загрузки"; return 1; }
   echo "Обновляю списки и стратегии..."
   su -c "cp -f $src/lists/* $BASE/lists/ && cp -f $src/strategies/*.conf $BASE/strategies/"
+  ensure_user_lists
   echo "Обновляю скрипты (zapret.conf не трогаю)..."
   su -c "cp -f $src/zapret.sh $src/zapret-watch.sh $src/service.sh $src/VERSION $BASE/"
   echo "Обновляю nfqws..."
@@ -108,6 +118,39 @@ update_apply() {
   rm -rf "$d"
   echo "Обновлено. Перезапускаю..."
   do_restart
+}
+
+user_sites() {
+  local ul="$BASE/lists/list-general-user.txt" x
+  echo "--- Мои домены (list-general-user.txt) ---"
+  if [ -s "$ul" ]; then cat "$ul"; else echo "  (пусто)"; fi
+  echo "1) Добавить домен"
+  echo "2) Удалить домен"
+  echo "3) Назад"
+  read -rp "Выбор: " a || return 0
+  case "$a" in
+    1)
+      read -rp "Домен(ы) через пробел: " d || return 0
+      for x in $d; do
+        x="${x%/}"
+        [ -n "$x" ] || continue
+        if grep -qx "$x" "$ul" 2>/dev/null || grep -qx "$x" "$BASE/lists/list-general.txt" 2>/dev/null; then
+          echo "  уже есть (пропускаю): $x"
+        else
+          su -c "echo '$x' >> '$ul'"
+          echo "  добавлено: $x"
+        fi
+      done
+      do_restart
+      ;;
+    2)
+      read -rp "Домен для удаления: " d || return 0
+      [ -n "$d" ] || return 0
+      su -c "grep -vx '$d' '$ul' > '$ul.tmp' && mv '$ul.tmp' '$ul'"
+      echo "  удалено: $d"
+      do_restart
+      ;;
+  esac
 }
 
 menu() {
@@ -127,7 +170,8 @@ menu() {
   echo " 6) Сменить стратегию"
   echo " 7) Автозапуск: вкл/выкл"
   echo " 8) Проверить обновления"
-  echo " 9) Выход"
+  echo " 9) Мои домены"
+  echo " 10) Выход"
   echo "================================================"
 }
 
@@ -143,7 +187,8 @@ while true; do
     6) pick_strategy ;;
     7) autostart_toggle ;;
     8) update_check ;;
-    9) echo "Пока"; exit 0 ;;
+    9) user_sites ;;
+    10) echo "Пока"; exit 0 ;;
     *) echo "Некорректный пункт" ;;
   esac
 done

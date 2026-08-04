@@ -24,6 +24,37 @@ KNOWN_LISTS = {
     "list-general.txt", "list-google.txt", "list-exclude.txt",
     "ipset-all.txt", "ipset-exclude.txt",
 }
+# Рядом с основным списком подключаем и user-версию (пользовательские домены).
+# Файл всегда должен существовать в рантайме (создаёт install.sh), может быть пустым.
+USER_LISTS = {
+    "lists/list-general.txt": "lists/list-general-user.txt",
+    "lists/list-exclude.txt": "lists/list-exclude-user.txt",
+    "lists/ipset-exclude.txt": "lists/ipset-exclude-user.txt",
+}
+# Читаемые имена вместо general___ALT11__.conf и т.п.
+RENAME = {
+    "general.bat": "general.conf",
+    "general___ALT__.bat": "alt.conf",
+    "general___ALT2__.bat": "alt2.conf",
+    "general___ALT3__.bat": "alt3.conf",
+    "general___ALT4__.bat": "alt4.conf",
+    "general___ALT5__.bat": "alt5.conf",
+    "general___ALT6__.bat": "alt6.conf",
+    "general___ALT7__.bat": "alt7.conf",
+    "general___ALT8__.bat": "alt8.conf",
+    "general___ALT9__.bat": "alt9.conf",
+    "general___ALT10__.bat": "alt10.conf",
+    "general___ALT11__.bat": "alt11.conf",
+    "general___ALT12__.bat": "alt12.conf",
+    "general___EXP__.bat": "exp.conf",
+    "general___FAKE_TLS_AUTO__.bat": "fake-tls-auto.conf",
+    "general___FAKE_TLS_AUTO_ALT__.bat": "fake-tls-auto-alt.conf",
+    "general___FAKE_TLS_AUTO_ALT2__.bat": "fake-tls-auto-alt2.conf",
+    "general___FAKE_TLS_AUTO_ALT3__.bat": "fake-tls-auto-alt3.conf",
+    "general___SIMPLE_FAKE__.bat": "simple-fake.conf",
+    "general___SIMPLE_FAKE_ALT__.bat": "simple-fake-alt.conf",
+    "general___SIMPLE_FAKE_ALT2__.bat": "simple-fake-alt2.conf",
+}
 PAYLOAD_OPTS = {
     "--dpi-desync-fake-tls", "--dpi-desync-fake-quic", "--dpi-desync-fake-http",
     "--dpi-desync-fake-discord", "--dpi-desync-fake-stun", "--dpi-desync-fake-unknown",
@@ -99,6 +130,8 @@ def profile_to_args(toks):
                 continue
             v = "lists/" + base
         out.append(f"{name}={v}")
+        if v in USER_LISTS:
+            out.append(f"{name}={USER_LISTS[v]}")
     return out
 
 
@@ -146,7 +179,7 @@ def main():
         if not rendered:
             print("SKIP EMPTY", fn)
             continue
-        name = fn[:-4] + ".conf"
+        name = RENAME.get(fn, fn[:-4] + ".conf")
         with open(os.path.join(OUT, name), "w") as f:
             f.write(rendered + "\n")
         print(f"{name}: {len(profiles)} profiles -> {rendered.count('--new') + 1} kept")
