@@ -11,8 +11,39 @@
 
 ---
 
+## Быстрый старт
+
+Установка и запуск за 3 команды:
+
+```bash
+git clone https://github.com/SolomonNumb1/zapret-android ~/zapret-android
+cd ~/zapret-android && bash install.sh
+bash /data/local/tmp/zapret/zapret.sh start
+```
+
+Проверка, что всё работает:
+
+```bash
+bash /data/local/tmp/zapret/zapret.sh test
+```
+
+Ожидаемый результат: `youtube.com 200`, `discord.com 200`, `redirector.googlevideo.com 404`.
+
+Все операции доступны и из меню:
+
+```bash
+bash /data/local/tmp/zapret/service.sh
+```
+
+(запуск/остановка, смена стратегии, свои домены, проверка обновлений — пункты меню).
+
+Чтобы zapret поднимался сам при загрузке — выберите пункт 7 «Автозапуск» в меню.
+
+---
+
 ## Содержание
 
+- [Быстрый старт](#быстрый-старт)
 - [Требования](#требования)
 - [Установка](#установка)
 - [Управление](#управление)
