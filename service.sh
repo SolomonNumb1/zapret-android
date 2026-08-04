@@ -68,38 +68,23 @@ EOF
 GH_BASE="https://raw.githubusercontent.com/SolomonNumb1/zapret-android/main"
 GH_ASSET="https://github.com/SolomonNumb1/zapret-android/releases/latest/download/nfqws-linux-arm64"
 
-sha() { sha1sum | cut -d' ' -f1; }
-
 update_check() {
   echo "Проверяю обновления (GitHub)..."
-  local out=0 t
-  for f in lists/list-general.txt strategies/alt11.conf; do
-    t="$(mktemp)"
-    curl -sL --max-time 10 -o "$t" "$GH_BASE/$f"
-    if [ ! -s "$t" ]; then
-      rm -f "$t"
-      echo "Нет связи с GitHub"
-      return 1
-    fi
-    if [ "$(sha < "$t")" != "$(sha < "$BASE/$f")" ]; then
-      echo "  $f — есть обновление"
-      out=1
-    fi
+  local t="$(mktemp)"
+  curl -sL --max-time 10 -o "$t" "$GH_BASE/VERSION"
+  if [ ! -s "$t" ]; then
     rm -f "$t"
-  done
-  t="$(mktemp)"
-  if curl -sL --max-time 20 -o "$t" "$GH_ASSET" && [ -s "$t" ]; then
-    if [ "$(sha < "$t")" != "$(sha < "$BASE/nfqws")" ]; then
-      echo "  nfqws — есть обновление"
-      out=1
-    fi
+    echo "Нет связи с GitHub"
+    return 1
   fi
+  local remote="$(tr -d '[:space:]' < "$t")" cur="$(tr -d '[:space:]' < "$BASE/VERSION")"
   rm -f "$t"
-  if [ "$out" -eq 0 ]; then
-    echo "Обновлений нет — всё актуально"
+  if [ "$remote" = "$cur" ]; then
+    echo "Обновлений нет — всё актуально ($cur)"
     return 0
   fi
-  read -rp "Найдены обновления. Обновить сейчас? (y/n): " y || return 0
+  echo "  Доступно обновление: $cur -> $remote"
+  read -rp "Обновить сейчас? (y/n): " y || return 0
   [ "$y" = "y" ] && update_apply
 }
 
@@ -115,7 +100,7 @@ update_apply() {
     done
   done
   echo "Обновляю скрипты (zapret.conf не трогаю)..."
-  for n in zapret.sh zapret-watch.sh service.sh; do
+  for n in zapret.sh zapret-watch.sh service.sh VERSION; do
     t="$(mktemp)"
     curl -sL --max-time 15 -o "$t" "$GH_BASE/$n" && [ -s "$t" ] && su -c "cp -f '$t' '$BASE/$n'"
     rm -f "$t"

@@ -13,7 +13,7 @@ su -c "mkdir -p $DEST/bin $DEST/lists $DEST/strategies"
 su -c "cp -f $SRC/bin/* $DEST/bin/"
 su -c "cp -f $SRC/lists/* $DEST/lists/"
 su -c "cp -f $SRC/strategies/*.conf $DEST/strategies/"
-su -c "cp -f $SRC/zapret.conf $SRC/zapret.sh $SRC/zapret-watch.sh $SRC/service.sh $DEST/"
+su -c "cp -f $SRC/zapret.conf $SRC/zapret.sh $SRC/zapret-watch.sh $SRC/service.sh $SRC/VERSION $DEST/"
 su -c "chmod 755 $DEST/zapret.sh $DEST/zapret-watch.sh $DEST/service.sh"
 su -c "chmod 644 $DEST/bin/* $DEST/lists/* $DEST/strategies/* $DEST/zapret.conf"
 
