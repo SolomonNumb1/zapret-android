@@ -65,21 +65,23 @@ EOF
   fi
 }
 
-GH_BASE="https://raw.githubusercontent.com/SolomonNumb1/zapret-android/main"
+GH_TAR="https://codeload.github.com/SolomonNumb1/zapret-android/tar.gz/main"
 GH_ASSET="https://github.com/SolomonNumb1/zapret-android/releases/latest/download/nfqws-linux-arm64"
+
+fetch_repo() {
+  curl -sL --max-time 60 "$GH_TAR" | tar xzf - -C "$1" 2>/dev/null \
+    && [ -f "$1/zapret-android-main/VERSION" ] \
+    && echo "$1/zapret-android-main"
+}
 
 update_check() {
   echo "Проверяю обновления (GitHub)..."
-  local t="$(mktemp)"
-  curl -sL --max-time 10 -o "$t" "$GH_BASE/VERSION"
-  if [ ! -s "$t" ]; then
-    rm -f "$t"
-    echo "Нет связи с GitHub"
-    return 1
-  fi
-  local remote="$(tr -d '[:space:]' < "$t")" cur="$(tr -d '[:space:]' < "$BASE/VERSION")"
-  rm -f "$t"
-  if [ "$remote" = "$cur" ]; then
+  local d="$(mktemp -d)" src
+  src="$(fetch_repo "$d")" || { rm -rf "$d"; echo "Нет связи с GitHub"; return 1; }
+  local remote="$(tr -d '[:space:]' < "$src/VERSION")"
+  local cur="$(tr -d '[:space:]' < "$BASE/VERSION")"
+  rm -rf "$d"
+  if [ -z "$remote" ] || [ "$remote" = "$cur" ]; then
     echo "Обновлений нет — всё актуально ($cur)"
     return 0
   fi
@@ -89,22 +91,13 @@ update_check() {
 }
 
 update_apply() {
+  echo "Загружаю свежую версию с GitHub..."
+  local d="$(mktemp -d)" src t
+  src="$(fetch_repo "$d")" || { rm -rf "$d"; echo "Ошибка загрузки"; return 1; }
   echo "Обновляю списки и стратегии..."
-  local f n t
-  for d in lists strategies; do
-    for f in "$BASE/$d"/*; do
-      n="$(basename "$f")"
-      t="$(mktemp)"
-      curl -sL --max-time 15 -o "$t" "$GH_BASE/$d/$n" && [ -s "$t" ] && su -c "cp -f '$t' '$f'"
-      rm -f "$t"
-    done
-  done
+  su -c "cp -f $src/lists/* $BASE/lists/ && cp -f $src/strategies/*.conf $BASE/strategies/"
   echo "Обновляю скрипты (zapret.conf не трогаю)..."
-  for n in zapret.sh zapret-watch.sh service.sh VERSION; do
-    t="$(mktemp)"
-    curl -sL --max-time 15 -o "$t" "$GH_BASE/$n" && [ -s "$t" ] && su -c "cp -f '$t' '$BASE/$n'"
-    rm -f "$t"
-  done
+  su -c "cp -f $src/zapret.sh $src/zapret-watch.sh $src/service.sh $src/VERSION $BASE/"
   echo "Обновляю nfqws..."
   t="$(mktemp)"
   if curl -sL --max-time 30 -o "$t" "$GH_ASSET" && [ -s "$t" ]; then
@@ -112,6 +105,7 @@ update_apply() {
   fi
   rm -f "$t"
   su -c "chmod 755 $BASE/zapret.sh $BASE/zapret-watch.sh $BASE/service.sh"
+  rm -rf "$d"
   echo "Обновлено. Перезапускаю..."
   do_restart
 }
