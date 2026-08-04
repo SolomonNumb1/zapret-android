@@ -65,6 +65,72 @@ EOF
   fi
 }
 
+GH_BASE="https://raw.githubusercontent.com/SolomonNumb1/zapret-android/main"
+GH_ASSET="https://github.com/SolomonNumb1/zapret-android/releases/latest/download/nfqws-linux-arm64"
+
+sha() { sha1sum | cut -d' ' -f1; }
+
+update_check() {
+  echo "Проверяю обновления (GitHub)..."
+  local out=0 t
+  for f in lists/list-general.txt strategies/alt11.conf; do
+    t="$(mktemp)"
+    curl -sL --max-time 10 -o "$t" "$GH_BASE/$f"
+    if [ ! -s "$t" ]; then
+      rm -f "$t"
+      echo "Нет связи с GitHub"
+      return 1
+    fi
+    if [ "$(sha < "$t")" != "$(sha < "$BASE/$f")" ]; then
+      echo "  $f — есть обновление"
+      out=1
+    fi
+    rm -f "$t"
+  done
+  t="$(mktemp)"
+  if curl -sL --max-time 20 -o "$t" "$GH_ASSET" && [ -s "$t" ]; then
+    if [ "$(sha < "$t")" != "$(sha < "$BASE/nfqws")" ]; then
+      echo "  nfqws — есть обновление"
+      out=1
+    fi
+  fi
+  rm -f "$t"
+  if [ "$out" -eq 0 ]; then
+    echo "Обновлений нет — всё актуально"
+    return 0
+  fi
+  read -rp "Найдены обновления. Обновить сейчас? (y/n): " y || return 0
+  [ "$y" = "y" ] && update_apply
+}
+
+update_apply() {
+  echo "Обновляю списки и стратегии..."
+  local f n t
+  for d in lists strategies; do
+    for f in "$BASE/$d"/*; do
+      n="$(basename "$f")"
+      t="$(mktemp)"
+      curl -sL --max-time 15 -o "$t" "$GH_BASE/$d/$n" && [ -s "$t" ] && su -c "cp -f '$t' '$f'"
+      rm -f "$t"
+    done
+  done
+  echo "Обновляю скрипты (zapret.conf не трогаю)..."
+  for n in zapret.sh zapret-watch.sh service.sh; do
+    t="$(mktemp)"
+    curl -sL --max-time 15 -o "$t" "$GH_BASE/$n" && [ -s "$t" ] && su -c "cp -f '$t' '$BASE/$n'"
+    rm -f "$t"
+  done
+  echo "Обновляю nfqws..."
+  t="$(mktemp)"
+  if curl -sL --max-time 30 -o "$t" "$GH_ASSET" && [ -s "$t" ]; then
+    su -c "cp -f '$t' '$BASE/nfqws' && chmod 755 '$BASE/nfqws'"
+  fi
+  rm -f "$t"
+  su -c "chmod 755 $BASE/zapret.sh $BASE/zapret-watch.sh $BASE/service.sh"
+  echo "Обновлено. Перезапускаю..."
+  do_restart
+}
+
 menu() {
   local running
   if su -c "pgrep -x nfqws" >/dev/null 2>&1; then running="запущен"
@@ -81,7 +147,8 @@ menu() {
   echo " 5) Проверить доступность (test)"
   echo " 6) Сменить стратегию"
   echo " 7) Автозапуск: вкл/выкл"
-  echo " 8) Выход"
+  echo " 8) Проверить обновления"
+  echo " 9) Выход"
   echo "================================================"
 }
 
@@ -96,7 +163,8 @@ while true; do
     5) do_test ;;
     6) pick_strategy ;;
     7) autostart_toggle ;;
-    8) echo "Пока"; exit 0 ;;
+    8) update_check ;;
+    9) echo "Пока"; exit 0 ;;
     *) echo "Некорректный пункт" ;;
   esac
 done
