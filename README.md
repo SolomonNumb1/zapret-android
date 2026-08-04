@@ -349,8 +349,11 @@ nfqws работает с пониженными привилегиями (`--ui
 
 ---
 
-## Источники
+## Источники и лицензия
 
-- [bol-van/zapret](https://github.com/bol-van/zapret) — nfqws, официальная документация.
+- [bol-van/zapret](https://github.com/bol-van/zapret) — nfqws, официальная документация (GPL-3.0).
+  Бинарник не распространяется в этом репозитории, а скачивается при установке.
 - [Flowseal/zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube) — стратегии
-  и списки (лицензия проекта).
+  (`strategies/bat/*.bat`), списки и payload (MIT).
+- Собственный код (install.sh, zapret.sh, zapret-watch.sh, service.sh, tools/convert.py)
+  распространяется по MIT — см. `LICENSE`.
