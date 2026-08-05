@@ -121,36 +121,56 @@ update_apply() {
 }
 
 user_sites() {
-  local ul="$BASE/lists/list-general-user.txt" x
-  echo "--- Мои домены (list-general-user.txt) ---"
-  if [ -s "$ul" ]; then cat "$ul"; else echo "  (пусто)"; fi
-  echo "1) Добавить домен"
-  echo "2) Удалить домен"
-  echo "3) Назад"
-  read -rp "Выбор: " a || return 0
-  case "$a" in
-    1)
-      read -rp "Домен(ы) через пробел: " d || return 0
-      for x in $d; do
-        x="${x%/}"
-        [ -n "$x" ] || continue
-        if grep -qx "$x" "$ul" 2>/dev/null || grep -qx "$x" "$BASE/lists/list-general.txt" 2>/dev/null; then
-          echo "  уже есть (пропускаю): $x"
-        else
-          su -c "echo '$x' >> '$ul'"
-          echo "  добавлено: $x"
-        fi
-      done
-      do_restart
-      ;;
-    2)
-      read -rp "Домен для удаления: " d || return 0
-      [ -n "$d" ] || return 0
-      su -c "grep -vx '$d' '$ul' > '$ul.tmp' && mv '$ul.tmp' '$ul'"
-      echo "  удалено: $d"
-      do_restart
-      ;;
-  esac
+  local a
+  while true; do
+    echo "--- Свои домены ---"
+    echo "  1) Обойти DPI (list-general-user.txt)"
+    echo "  2) Исключить из zapret (list-exclude-user.txt)"
+    echo "  3) Назад"
+    read -rp "Выбор: " a || return 0
+    case "$a" in
+      1) user_edit "$BASE/lists/list-general-user.txt" "обходить DPI" "$BASE/lists/list-general.txt" ;;
+      2) user_edit "$BASE/lists/list-exclude-user.txt" "исключить из zapret" "$BASE/lists/list-exclude.txt" ;;
+      3) return 0 ;;
+    esac
+  done
+}
+
+# user_edit <файл> <описание> <базовый_список_для_дедупликации>
+user_edit() {
+  local ul="$1" what="$2" base="$3" a x
+  while true; do
+    echo
+    echo "--- Домены, которые $what ---"
+    echo "  Файл: $ul"
+    if [ -s "$ul" ]; then cat "$ul"; else echo "  (пусто)"; fi
+    echo "  1) Добавить домен   2) Удалить домен   3) Назад"
+    read -rp "Выбор: " a || return 0
+    case "$a" in
+      1)
+        read -rp "Домен(ы) через пробел: " d || return 0
+        for x in $d; do
+          x="${x%/}"
+          [ -n "$x" ] || continue
+          if grep -qx "$x" "$ul" 2>/dev/null || grep -qx "$x" "$base" 2>/dev/null; then
+            echo "  уже есть (пропускаю): $x"
+          else
+            su -c "echo '$x' >> '$ul'"
+            echo "  добавлено: $x"
+          fi
+        done
+        do_restart
+        ;;
+      2)
+        read -rp "Домен для удаления: " d || return 0
+        [ -n "$d" ] || return 0
+        su -c "grep -vx '$d' '$ul' > '$ul.tmp' && mv '$ul.tmp' '$ul'"
+        echo "  удалено: $d"
+        do_restart
+        ;;
+      3) return 0 ;;
+    esac
+  done
 }
 
 menu() {
