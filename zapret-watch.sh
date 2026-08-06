@@ -24,17 +24,25 @@ rule_udp() {
   echo "POSTROUTING ! -o lo -p udp -m multiport --dports $udp -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes 1:6 -m mark ! --mark $MARK/$MARK -j NFQUEUE --queue-num $QNUM --queue-bypass"
 }
 
-iptables_ensure() {
-  local ipt="$1" rule="$2"
-  iptables -t mangle -C $rule 2>/dev/null || iptables -t mangle -I $rule 2>/dev/null
+flush_q() {
+  # Удаляем ВСЕ правила очереди $QNUM (сколько бы их ни накопилось),
+  # затем заново добавляем ровно по одному tcp/udp на таблицу.
+  local ipt="$1" line cmd
+  while line="$($ipt -t mangle -S POSTROUTING 2>/dev/null | grep "NFQUEUE --queue-num $QNUM" | head -1)"; do
+    [ -n "$line" ] || break
+    cmd="$(echo "$line" | sed 's/^-A /-D /')"
+    $ipt -t mangle $cmd 2>/dev/null
+  done
 }
 
 ensure_rules() {
-  iptables_ensure iptables "$(rule_tcp)"
-  iptables_ensure iptables "$(rule_udp)"
+  flush_q iptables
+  iptables -t mangle -I $(rule_tcp) 2>/dev/null
+  iptables -t mangle -I $(rule_udp) 2>/dev/null
   if [ -x /system/bin/ip6tables ]; then
-    iptables_ensure ip6tables "$(rule_tcp)"
-    iptables_ensure ip6tables "$(rule_udp)"
+    flush_q ip6tables
+    ip6tables -t mangle -I $(rule_tcp) 2>/dev/null
+    ip6tables -t mangle -I $(rule_udp) 2>/dev/null
   fi
 }
 

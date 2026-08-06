@@ -30,21 +30,32 @@ iptables_del() {
   su -c "$ipt -t mangle -D $rule" 2>/dev/null
 }
 
+flush_q() {
+  # Удаляем ВСЕ правила очереди $QNUM (сколько бы их ни накопилось),
+  # затем заново добавляем ровно по одному tcp/udp на таблицу.
+  local ipt="$1" line cmd
+  while line="$($ipt -t mangle -S POSTROUTING 2>/dev/null | grep "NFQUEUE --queue-num $QNUM" | head -1)"; do
+    [ -n "$line" ] || break
+    cmd="$(echo "$line" | sed 's/^-A /-D /')"
+    su -c "$ipt -t mangle $cmd" 2>/dev/null
+  done
+}
+
 add_rules() {
+  flush_q iptables
   iptables_add iptables "$(rule_tcp)"
   iptables_add iptables "$(rule_udp)"
   if [ -x /system/bin/ip6tables ]; then
+    flush_q ip6tables
     iptables_add ip6tables "$(rule_tcp)"
     iptables_add ip6tables "$(rule_udp)"
   fi
 }
 
 del_rules() {
-  iptables_del iptables "$(rule_tcp)"
-  iptables_del iptables "$(rule_udp)"
+  flush_q iptables
   if [ -x /system/bin/ip6tables ]; then
-    iptables_del ip6tables "$(rule_tcp)"
-    iptables_del ip6tables "$(rule_udp)"
+    flush_q ip6tables
   fi
 }
 
